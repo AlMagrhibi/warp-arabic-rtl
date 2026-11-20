@@ -8,6 +8,18 @@
 
 ---
 
+## Documentation
+
+| Document | Contents |
+| --- | --- |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Real implementation: pipeline, BiDi, shaping, glyph atlas, GPU, packaging |
+| [docs/IMAGE-PROTOCOLS.md](docs/IMAGE-PROTOCOLS.md) | Kitty graphics and iTerm2 inline images: verified matrix and limits |
+| [docs/INSTALL.md](docs/INSTALL.md) | Rootless one-step install, manual launch |
+| [docs/BUILD.md](docs/BUILD.md) | Building the binary and the AppImage |
+| [docs/UPDATE-POLICY.md](docs/UPDATE-POLICY.md) | Why official Warp updates are disabled |
+| [docs/UNINSTALL.md](docs/UNINSTALL.md) | Removing the app, keeping or purging settings |
+| [CHANGELOG.md](CHANGELOG.md) | Release history |
+
 ## The problem
 
 Terminal cells are stored in *logical* order and every classic terminal draws them left to

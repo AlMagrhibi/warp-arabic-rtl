@@ -4,6 +4,45 @@ All notable changes to this fork. Format follows [Keep a Changelog](https://keep
 This project is a fork of [warpdotdev/warp](https://github.com/warpdotdev/warp); upstream
 changes are not listed here.
 
+## [1.0.1] — 2026-11-20
+
+Desktop integration release. The terminal binary is unchanged from 1.0.0; this
+release adds the packaging and verification layers around it.
+
+### Added
+
+- `scripts/install.sh`: rootless, per-user installer for the published AppImage.
+  Verifies the SHA-256, proves the AppImage contains the Arabic renderer
+  (`bidi_row.rs`), installs the binary, a desktop entry, and five icon sizes, and
+  writes a manifest for clean removal. No sudo, no system package.
+- `scripts/uninstall.sh`: removes exactly the files in the manifest, keeps
+  settings unless `--purge-settings` is passed.
+- `scripts/verify-install.sh`: checks the binary, the renderer inside it, the
+  desktop entry (`StartupWMClass`, `Exec`, `desktop-file-validate`), the icon, and
+  the running window class.
+- `assets/icon/`: project icon (SVG + PNG 32–256) so the launcher and taskbar are
+  distinguishable from the official Warp icon.
+- `docs/ARCHITECTURE.md`: source-grounded description of the pipeline, BiDi path,
+  shaping, glyph atlas, GPU renderer, image protocols, packaging and update
+  isolation.
+- `docs/IMAGE-PROTOCOLS.md`: verified matrix for Kitty graphics and iTerm2 inline
+  images on the released AppImage.
+- `docs/screenshots/06-kitty-inline.png`: both protocols rendering inline images.
+
+### Fixed
+
+- KDE had no launcher entry for the app, so the application menu had no icon and
+  the task manager could not bind windows to a launcher. The installer now
+  registers a desktop entry with `StartupWMClass=dev.warp.WarpOss` (the class the
+  binary actually reports) plus icons.
+
+### Verified
+
+- Kitty graphics and iTerm2 inline images both render in the released AppImage.
+- Installed launcher starts the app from `~/.local/bin/warp-arabic`; the running
+  window class matches the desktop entry, and KDE shows the project icon in the
+  task manager.
+
 ## [1.0.0] — 2026-11-20
 
 First packaged release of the Arabic/RTL fork.
