@@ -55,10 +55,10 @@ original fast per-cell path and only pays the shaping cost for rows that need it
 
 ## Known limitations
 
-- **Clipboard copy of a mouse-selected RTL region** has not been fully verified end to end.
-  Pasting *into* the terminal is verified byte-exact; copying *out* uses the unmodified
-  upstream selection code and is believed correct, but the automation used for this release
-  could not capture the clipboard reliably.
+- Selection is stored in **logical** grid columns, so dragging across part of a mixed
+  direction line selects the logical cells under the pointer rather than the mirrored visual
+  glyphs. Selecting a whole line (triple click) copies the exact logical text, which is what
+  was verified for this release.
 - Lines wider than the window are clipped by the terminal viewport as usual; they are not
   wrapped, same as upstream.
 - Bidirectional text in the *input line* (the prompt) is rendered by the same shaped path,
@@ -70,15 +70,16 @@ original fast per-cell path and only pays the shaping cost for rows that need it
 
 ```bash
 # download from the latest release, then
-chmod +x warp-terminal-arabic-*.AppImage
-./warp-terminal-arabic-*.AppImage
+chmod +x warp-arabic-1.0.0-x86_64.AppImage
+./warp-arabic-1.0.0-x86_64.AppImage
 ```
 
 Optional desktop entry:
 
 ```bash
 mkdir -p ~/.local/bin ~/.local/share/applications
-mv warp-terminal-arabic-*.AppImage ~/.local/bin/warp-arabic
+mv warp-arabic-*.AppImage ~/.local/bin/warp-arabic
+chmod +x ~/.local/bin/warp-arabic
 cp packaging/dev.warp.WarpOss-ArArabic.desktop ~/.local/share/applications/
 ```
 
@@ -89,7 +90,7 @@ it yourself, [docs/UPDATE-POLICY.md](docs/UPDATE-POLICY.md) for the update polic
 ## Build from source
 
 ```bash
-git clone https://github.com/<owner>/warp-arabic-rtl.git
+git clone https://github.com/AlMagrhibi/warp-arabic-rtl.git
 cd warp-arabic-rtl
 cargo build --release --bin warp-oss --features release_bundle
 ./script/bundle -c oss --packages appimage --skip-build
@@ -108,6 +109,30 @@ cargo test -p warp --lib terminal::grid_renderer     # 15 tests: renderer regres
 Both suites pass on the released revision. The renderer suite is upstream's and is run here
 to prove the BiDi path did not break box drawing, selection maths or background bounds.
 
+## Verification for v1.0.0
+
+The published AppImage was tested from outside the build directory, in an isolated `HOME`,
+on Fedora 45 / KDE Plasma with an X11 (`XWayland`) display:
+
+| Check | Result |
+|---|---|
+| Arabic shell output, cursive joining, RTL order | pass |
+| Mixed Arabic + English line keeps Latin words intact | pass |
+| Numbers, `%`, punctuation inside RTL runs | pass |
+| Harakat and Hebrew (no tofu, no missing glyphs) | pass |
+| Box-drawing tables aligned with Arabic cells | pass |
+| `vim` editing a file containing an Arabic string | pass |
+| `top` in the alt screen | pass |
+| Cursor after Arabic input, typing continues correctly | pass |
+| Paste Arabic into the terminal — clipboard bytes `d985 d8b1 …` intact | pass |
+| Mouse select an Arabic line + `Ctrl+Shift+C` — clipboard equals the logical text | pass |
+| Shell, `git`, `ssh`, file permissions inside the AppImage environment | pass |
+| `cargo test -p warp --lib terminal::bidi_row` | 5 passed |
+| `cargo test -p warp --lib terminal::grid_renderer` | 15 passed, 1 ignored |
+
+SHA-256 of `warp-arabic-1.0.0-x86_64.AppImage`:
+`8504c59bddcac1dcc755d42db214c71acf056b88fa13486faa6a5f1b4dd7916f`
+
 ## Updates — nothing updates itself
 
 This build **cannot** update itself and will never be silently replaced by an official Warp
@@ -125,6 +150,14 @@ release:
 
 Updates, if any, are manual: download the new AppImage from *this* repository's GitHub
 Releases and replace the old file. See [docs/UPDATE-POLICY.md](docs/UPDATE-POLICY.md).
+
+## Repository history
+
+This repository was started from the upstream master source tarball rather than from a git
+clone, so the first commit (`chore: add complete upstream source snapshot`) contains the whole
+upstream tree as a single snapshot. The fork's own changes sit on top of it as ordinary
+commits; the upstream diff for this release is
+`git diff 535c99ed..v1.0.0 -- app/src/terminal app/Cargo.toml`.
 
 ## Attribution
 

@@ -1,0 +1,1 @@
+8504c59bddcac1dcc755d42db214c71acf056b88fa13486faa6a5f1b4dd7916f  warp-arabic-1.0.0-x86_64.AppImage

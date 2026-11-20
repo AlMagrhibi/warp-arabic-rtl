@@ -41,9 +41,14 @@ First packaged release of the Arabic/RTL fork.
 - Manual: Arabic/Hebrew shell output, mixed Arabic/English commands, harakat, box tables,
   `vim` on an Arabic file, `top` in the alt screen, Arabic prompt + cursor, byte-exact paste
   of Arabic into the terminal.
+- Mouse-selected Arabic line copied with `Ctrl+Shift+C` gives back the exact logical text
+  (`ARABICCOPY-مرحبا-بالعالم-END`, UTF-8 `d985 d8b1 …`).
+- Packaged AppImage run from outside the build directory with an isolated `HOME` on Fedora 45 /
+  KDE (XWayland): Arabic renders correctly, and `git`, `ssh`, `chmod` and clipboard work.
 
 ### Known limitations
 
-- Clipboard **copy** of a mouse-selected RTL region is not verified end to end (see README).
+- Selection uses logical grid columns, so a partial drag inside a mixed-direction line does
+  not map to the mirrored visual glyphs; whole-line selection copies the exact text.
 - Lines wider than the window are clipped, not wrapped (upstream behaviour).
 - Linux x86_64 only.
