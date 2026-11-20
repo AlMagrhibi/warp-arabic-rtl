@@ -1,0 +1,13 @@
+[Desktop Entry]
+# Desktop entry for the unofficial Arabic/RTL fork of Warp.
+Version=1.0
+Type=Application
+Name=Warp Arabic
+GenericName=Terminal Emulator
+Comment=Warp terminal with native Arabic BiDi rendering and cursive shaping
+Exec=warp-arabic %U
+Icon=dev.warp.WarpOss
+Terminal=false
+Categories=System;TerminalEmulator;
+StartupWMClass=dev.warp.WarpOss
+Keywords=terminal;shell;console;arabic;rtl;

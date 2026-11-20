@@ -1,110 +1,170 @@
-<a href="https://www.warp.dev">
-    <img width="1024" alt="Warp Agentic Development Environment product preview" src="https://github.com/user-attachments/assets/9976b2da-2edd-4604-a36c-8fd53719c6d4" />
-</a>
-&nbsp;
-<p align="center">
-  <a href="https://warp.dev/factories"><img height="20" alt="Built with Warp" src="https://raw.githubusercontent.com/warpdotdev/brand-assets/main/Github/Built-With-Warp-Export@2x.png" /></a>
-</p>
+# Warp Arabic / RTL
 
-<p align="center">
-  <a href="https://www.warp.dev">Website</a>
-  ·
-  <a href="https://www.warp.dev/code">Code</a>
-  ·
-  <a href="https://www.warp.dev/agents">Agents</a>
-  ·
-  <a href="https://www.warp.dev/terminal">Terminal</a>
-  ·
-  <a href="https://www.warp.dev/drive">Drive</a>
-  ·
-  <a href="https://docs.warp.dev">Docs</a>
-  ·
-  <a href="https://www.warp.dev/blog/how-warp-works">How Warp Works</a>
-</p>
+**Unofficial community fork of the open-source [Warp](https://github.com/warpdotdev/warp) terminal that adds native Arabic (and Hebrew/Syriac/Thaana) right-to-left rendering and Arabic cursive shaping to the grid renderer.**
 
-> [!NOTE]
-> OpenAI is the founding sponsor of the new, open-source Warp repository, and the new agentic management workflows are powered by GPT models.
+> ⚠️ This is **not** an official Warp product. It is an independent fork built from the
+> upstream open-source code base. Do not report bugs found here to Warp; report them in this
+> repository. Upstream is licensed AGPL-3.0 / MIT and all upstream notices are preserved.
 
-<h1></h1>
+---
 
-## About
+## The problem
 
-[Warp](https://www.warp.dev) is an agentic development environment, born out of the terminal. Use Warp's built-in coding agent, or bring your own CLI agent (Claude Code, Codex, Gemini CLI, and others).
+Terminal cells are stored in *logical* order and every classic terminal draws them left to
+right, one cell at a time. For Arabic that is wrong twice over:
 
-## Installation
+1. **Direction** — RTL runs must be laid out right to left, so the visual column of a cell is
+   not its grid column.
+2. **Shaping** — Arabic letters change shape depending on their neighbours. Shaping a cell in
+   isolation produces isolated letter forms and broken words.
 
-You can [download Warp](https://www.warp.dev/download) and [read our docs](https://docs.warp.dev/) for platform-specific instructions.
+The result in a stock Warp build is disconnected letters, reversed words, and garbled TUI
+output (vim, top, tmux, `dialog`, progress bars) as soon as a row contains Arabic.
 
-## Warp Contributions Overview Dashboard
+## What this fork changes
 
-Explore [build.warp.dev](https://build.warp.dev) to:
-- Watch thousands of [Warp Factory](warp.dev/factories) agents triage issues, write specs, implement changes, and review PRs
-- View top contributors and in-flight features
-- Track your own issues with GitHub sign-in
-- Click into active agent sessions in a web-compiled Warp terminal
+Two source files carry the behaviour, plus one module:
 
-## Automate development with Warp Factories
+| Path | Change |
+|---|---|
+| `app/src/terminal/bidi_row.rs` | New module: row detection (`is_bidi_or_joining_char`, `row_needs_bidi`), an implementation of the Unicode Bidirectional Algorithm's reordering step (rule L2) over grid cells (`analyze_row`, `reorder_map`), and unit tests. |
+| `app/src/terminal/grid_renderer.rs` | Rows containing RTL or cursive-joining characters are routed through the whole-row shaping path regardless of the user's ligature setting (`grid_rows_need_bidi_rendering`), and their glyphs are painted at the shaper's pen positions (`paint_line(..., use_shaped_positions)`) instead of being snapped to monospace cell columns. |
+| `app/Cargo.toml` | Adds the `unicode-bidi` crate. |
 
-This repository is driven by [Warp Factories](https://warp.dev/factories): open, flexible infrastructure for teams to build cloud software factories of their own.
+Everything else is upstream Warp, unmodified.
 
-Warp Factories are defined in code and easy to deploy on any model or harness, with evals, benchmarks, and self-improvement built in. [Get early access](https://warp.dev/factories) or [book a demo](https://warp.dev/get-started) for a tailored walk-through of the platform. Eligible teams can receive up to $10,000 in free factory usage.
+### Why not just flip the ligature setting?
 
-## Licensing
+Warp already had a whole-row layout path for ligatures, but it was only used when the user
+enabled ligatures, and it still snapped each glyph back to its cell column. RTL rows fall
+apart under per-cell placement: the shaper emits right-to-left pen positions, so glyphs are
+painted in the wrong order and Arabic joins break. This fork keeps non-BiDi rows on the
+original fast per-cell path and only pays the shaping cost for rows that need it.
 
-Warp's UI framework (the `warpui_core` and `warpui` crates) are licensed under the [MIT license](LICENSE-MIT).
+## Features
 
-The rest of the code in this repository is licensed under the [AGPL v3](LICENSE-AGPL).
+- Arabic, Persian, Urdu, Hebrew, Syriac, Thaana, N'Ko and Adlam text rendered joined and
+  right-to-left in normal shell output, `less`, `vim`, `top`, and other TUIs.
+- Mixed Arabic/English lines keep Latin words intact and in place (UAX #9 UBA ordering).
+- Combining marks (harakat) stack on the correct base letter.
+- Numbers, `%`, dates and punctuation inside RTL text follow the bidi algorithm.
+- Box-drawing tables (`┌─┬─┐`) stay aligned with Arabic cell content.
+- Cursor sits at the logical end of a typed RTL prompt; typing after Arabic text works.
+- Pasting Arabic text into the terminal preserves the exact bytes.
+- No change for rows that contain only LTR text — the original fast path is untouched.
 
-## Open Source & Contributing
+## Known limitations
 
-Warp's client codebase is open source and lives in this repository. We welcome community contributions and have designed a lightweight workflow to help new contributors get started. For the full contribution flow, read our [CONTRIBUTING.md](CONTRIBUTING.md) guide.
+- **Clipboard copy of a mouse-selected RTL region** has not been fully verified end to end.
+  Pasting *into* the terminal is verified byte-exact; copying *out* uses the unmodified
+  upstream selection code and is believed correct, but the automation used for this release
+  could not capture the clipboard reliably.
+- Lines wider than the window are clipped by the terminal viewport as usual; they are not
+  wrapped, same as upstream.
+- Bidirectional text in the *input line* (the prompt) is rendered by the same shaped path,
+  but caret movement inside a mixed-direction input line may not match the logical cursor
+  position in every case.
+- Only Linux x86_64 is built and tested here.
 
-> [!TIP]
-> **Chat with contributors and the Warp team** in the [`#oss-contributors`](https://warpcommunity.slack.com/archives/C0B0LM8N4DB) Slack channel — a good place for ad-hoc questions, design discussion, and pairing with maintainers. New here? [Join the Warp Slack community](https://go.warp.dev/join-preview) first, then jump into `#oss-contributors`.
-
-### Issue to PR
-
-Before filing, [search existing issues](https://github.com/warpdotdev/warp/issues?q=is%3Aissue+is%3Aopen+sort%3Areactions-%2B1-desc) for your bug or feature request. If nothing exists, [file an issue](https://github.com/warpdotdev/warp/issues/new/choose) using our templates. Security vulnerabilities should be reported privately as described in [CONTRIBUTING.md](CONTRIBUTING.md#reporting-security-issues).
-
-Once filed, a Warp maintainer reviews the issue and may apply a readiness label: [`ready-to-spec`](https://github.com/warpdotdev/warp/issues?q=is%3Aissue+is%3Aopen+label%3Aready-to-spec) signals the design is open for contributors to spec out, and [`ready-to-implement`](https://github.com/warpdotdev/warp/issues?q=is%3Aissue+is%3Aopen+label%3Aready-to-implement) signals the design is settled and code PRs are welcome. Anyone can pick up a labeled issue — mention **@oss-maintainers** on an issue if you'd like it considered for a readiness label.
-
-### Building the Repo Locally
-
-To build and run Warp from source:
+## Install (AppImage)
 
 ```bash
-./script/bootstrap   # platform-specific setup
-./script/run         # build and run Warp
-./script/presubmit   # fmt, clippy, and tests
+# download from the latest release, then
+chmod +x warp-terminal-arabic-*.AppImage
+./warp-terminal-arabic-*.AppImage
 ```
 
-See [AGENTS.md](AGENTS.md) for the full engineering guide, including coding style, testing, and platform-specific notes.
+Optional desktop entry:
 
-## Joining the Team
+```bash
+mkdir -p ~/.local/bin ~/.local/share/applications
+mv warp-terminal-arabic-*.AppImage ~/.local/bin/warp-arabic
+cp packaging/dev.warp.WarpOss-ArArabic.desktop ~/.local/share/applications/
+```
 
-Interested in joining the team? See our [open roles](https://www.warp.dev/careers).
+See [docs/INSTALL.md](docs/INSTALL.md) for details, [docs/BUILD.md](docs/BUILD.md) to build
+it yourself, [docs/UPDATE-POLICY.md](docs/UPDATE-POLICY.md) for the update policy, and
+[docs/UNINSTALL.md](docs/UNINSTALL.md) to remove it.
 
-## Support and Questions
+## Build from source
 
-1. See our [docs](https://docs.warp.dev/) for a comprehensive guide to Warp's features.
-2. Join our [Slack Community](https://go.warp.dev/join-preview) to connect with other users and get help from the Warp team — contributors hang out in [`#oss-contributors`](https://warpcommunity.slack.com/archives/C0B0LM8N4DB).
-3. Try our [Preview build](https://www.warp.dev/download-preview) to test the latest experimental features.
-4. Mention **@oss-maintainers** on any issue to escalate to the team — for example, if you encounter problems with the automated agents.
+```bash
+git clone https://github.com/<owner>/warp-arabic-rtl.git
+cd warp-arabic-rtl
+cargo build --release --bin warp-oss --features release_bundle
+./script/bundle -c oss --packages appimage --skip-build
+```
 
-## Code of Conduct
+Full prerequisites (Rust toolchain, `protoc`, Wayland/X11 dev headers, `lld`) are listed in
+[docs/BUILD.md](docs/BUILD.md).
 
-We ask everyone to be respectful and empathetic. Warp follows the [Code of Conduct](CODE_OF_CONDUCT.md). To report violations, email warp-coc at warp.dev.
+## Tests
 
-## Open Source Dependencies
+```bash
+cargo test -p warp --lib terminal::bidi_row          # 5 tests: ordering + detection
+cargo test -p warp --lib terminal::grid_renderer     # 15 tests: renderer regressions
+```
 
-We'd like to call out a few of the [open source dependencies](https://docs.warp.dev/help/licenses) that have helped Warp to get off the ground:
+Both suites pass on the released revision. The renderer suite is upstream's and is run here
+to prove the BiDi path did not break box drawing, selection maths or background bounds.
 
-- [Tokio](https://github.com/tokio-rs/tokio)
-- [NuShell](https://github.com/nushell/nushell)
-- [Fig Completion Specs](https://github.com/withfig/autocomplete)
-- [Warp Server Framework](https://github.com/seanmonstar/warp)
-- [Alacritty](https://github.com/alacritty/alacritty)
-- [Hyper HTTP library](https://github.com/hyperium/hyper)
-- [FontKit](https://github.com/servo/font-kit)
-- [Core-foundation](https://github.com/servo/core-foundation-rs)
-- [Smol](https://github.com/smol-rs/smol)
+## Updates — nothing updates itself
+
+This build **cannot** update itself and will never be silently replaced by an official Warp
+release:
+
+- The `autoupdate` Cargo feature is **not** compiled into this build
+  (`FeatureFlag::Autoupdate` is `cfg(feature = "autoupdate")` only), so the update poll loop
+  does not exist in the binary.
+- The build runs on the **OSS channel**, and upstream explicitly refuses updates for it:
+  `app/src/autoupdate/mod.rs` bails with *"Local, integration, and open-source channel
+  binaries don't support autoupdate"* and treats the OSS release-asset URL as unreachable
+  (`unreachable!("local/integration/oss autoupdate not supported")`).
+- No RPM, systemd unit, timer or repository file is installed by this project, so no package
+  manager can replace it either.
+
+Updates, if any, are manual: download the new AppImage from *this* repository's GitHub
+Releases and replace the old file. See [docs/UPDATE-POLICY.md](docs/UPDATE-POLICY.md).
+
+## Attribution
+
+- Upstream project: <https://github.com/warpdotdev/warp> — AGPL-3.0 (`LICENSE-AGPL`) and MIT
+  (`LICENSE-MIT`). Both licenses are kept in this repository and apply to the derived work.
+- The BiDi integration is published under the same terms.
+- Warp, the Warp logo and the Warp name are trademarks of Warp. This fork is unaffiliated and
+  is distributed under its own name.
+
+---
+
+## العربية
+
+**نسخة مجتمعية غير رسمية من طرفية Warp مفتوحة المصدر، تدعم العربية بشكل أصلي: تشكيل الحروف
+واتجاه الكتابة من اليمين إلى اليسار.**
+
+المشكلة في الطرفيات التقليدية أن كل خلية شبكية تُرسم من اليسار لليمين وبمعزل عن جاراتها، فيظهر
+النص العربي مقطّع الحروف ومعكوس الترتيب. هذا المستودع يعدّل مُصيّر الشبكة في Warp بحيث:
+
+- تُشكَّل الصفوف التي تحتوي حروفًا عربية/عبرية كسطر كامل (وليس خلية بخلية).
+- تُرسم المحارف في المواضع التي يحددها محرك التشكيل بدل تصحيحها على أعمدة الخلايا.
+- تبقى الصفوف اللاتينية على المسار السريع القديم دون أي تغيير.
+
+**التركيب:**
+
+```bash
+chmod +x warp-terminal-arabic-*.AppImage
+./warp-terminal-arabic-*.AppImage
+```
+
+**الاختبارات:**
+
+```bash
+cargo test -p warp --lib terminal::bidi_row
+cargo test -p warp --lib terminal::grid_renderer
+```
+
+**التحديثات:** هذه النسخة **لا تحدّث نفسها أبدًا**. ميزة التحديث التلقائي غير مضمَّنة في
+البناء أصلًا، وقناة OSS في Warp ترفض التحديث برسالة صريحة. أي تحديث يتم يدويًا من صفحة
+الإصدارات في هذا المستودع فقط.
+
+**ملاحظة:** هذه نسخة غير رسمية ولا علاقة لها بشركة Warp. رخصة المشروع الأصلي (AGPL-3.0/MIT)
+محفوظة كما هي.

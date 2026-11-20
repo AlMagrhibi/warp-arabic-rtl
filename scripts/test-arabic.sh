@@ -1,0 +1,21 @@
+c_rst=$'\033[0m'; c_yel=$'\033[33m'; c_cya=$'\033[36m'; c_bld=$'\033[1m'; c_grn=$'\033[32m'; c_mag=$'\033[35m'
+echo "${c_bld}${c_cya}=== Warp Arabic/BiDi visual test ===${c_rst}"
+echo
+echo "${c_yel}[1] Arabic only:${c_rst}"
+echo "مرحبا بك في وارب — هذه جملة عربية كاملة لاختبار الترتيب والوصل"
+echo "${c_yel}[2] Mixed Arabic + English:${c_rst}"
+echo "git commit -m \"إصلاح عرض النص العربي في الطرفية\" --amend"
+echo "kubectl get pods --namespace=الإنتاج -o wide"
+echo "${c_yel}[3] Numbers in RTL:${c_rst}"
+echo "السعر 1234.56 ريال، والخصم 15%، والتاريخ 2026/11/20"
+echo "${c_yel}[4] Latin first then Arabic:${c_rst}"
+echo "ERROR: فشل الاتصال بالخادم -> retry in 30s (رمز 503)"
+echo "${c_yel}[5] Long technical line:${c_rst}"
+echo "docker run --rm -it -e LANG=ar_SA.UTF-8 -v /home/مرحبا/data:/data image:latest bash -c \"echo تجربة; npm test\""
+echo "${c_yel}[6] Box drawing + Arabic:${c_rst}"
+printf '┌──────────────┬──────────────┐\n│ الاسم       │ القيمة       │\n├──────────────┼──────────────┤\n│ خادم الويب  │ 10.0.0.12    │\n└──────────────┴──────────────┘\n'
+echo "${c_yel}[7] Harakat:${c_rst}"
+echo "مُحَمَّدٌ كَتَبَ رِسَالَةً إِلَى صَدِيقِهِ"
+echo "${c_yel}[8] Hebrew:${c_rst}"
+echo "שלום עולם — hello world — 123"
+echo "${c_yel}[9] Done${c_rst}"
