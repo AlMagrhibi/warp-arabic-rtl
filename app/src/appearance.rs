@@ -343,6 +343,37 @@ fn load_default_ui_font_family(ctx: &mut AppContext) -> anyhow::Result<FamilyId>
     })
 }
 
+/// Loads the bundled color emoji font and registers it as the font to prefer for
+/// emoji code points.
+///
+/// Warp embeds the font rather than relying on system font configuration,
+/// because terminals need a color format that the rasterizer understands
+/// (COLR/CPAL v0 or CBDT/CBLC bitmaps) and because fontconfig commonly ranks
+/// monochrome symbol fonts ahead of color emoji fonts. The emoji font is only
+/// consulted for emoji code points, so it cannot change how ordinary text is
+/// rendered.
+fn load_emoji_font_family(ctx: &mut AppContext) {
+    warpui::fonts::Cache::handle(ctx).update(ctx, |font_cache, _| {
+        let font_bytes = match ASSETS.get("bundled/fonts/emoji/Twemoji.Mozilla.ttf") {
+            Ok(bytes) => bytes.to_vec(),
+            Err(err) => {
+                log::warn!("Unable to read the bundled emoji font: {err:?}");
+                return;
+            }
+        };
+        let family = match font_cache.load_family_from_bytes("Twemoji Mozilla", vec![font_bytes]) {
+            Ok(family) => family,
+            Err(err) => {
+                log::warn!("Unable to load the bundled emoji font: {err:?}");
+                return;
+            }
+        };
+        let font_id = font_cache.select_font(family, Default::default());
+        font_cache.set_emoji_font(font_id);
+        log::info!("Registered bundled color emoji font as fallback for emoji code points");
+    });
+}
+
 fn load_password_font_family(ctx: &mut AppContext) -> anyhow::Result<FamilyId> {
     warpui::fonts::Cache::handle(ctx).update(ctx, |font_cache, _| {
         font_cache.load_family_from_bytes(
@@ -411,6 +442,8 @@ fn build_appearance(ctx: &mut AppContext) -> Appearance {
 
     let password_font_family =
         load_password_font_family(ctx).expect("unable to load password font family");
+
+    load_emoji_font_family(ctx);
 
     let monospace_font_size = *FontSettings::as_ref(ctx).monospace_font_size.value();
 

@@ -399,6 +399,9 @@ pub struct TextLayoutSystem {
     loaded_font_ids_since_last_raster: RwLock<Vec<FontId>>,
     #[cfg(not(target_os = "windows"))]
     fallback_fonts: DashMap<FontId, Vec<FontId>>,
+    /// The font that should be preferred for emoji code points, when the user's
+    /// font configuration supplies one (see [`crate::fonts::emoji`]).
+    emoji_font: RwLock<Option<FontId>>,
 }
 
 pub struct FontDB {
@@ -410,6 +413,15 @@ pub struct FontDB {
 }
 
 impl FontDB {
+    /// Registers the font that should be preferred for emoji code points.
+    ///
+    /// This is called once, after the bundled color emoji family has been
+    /// inserted, so that per-character fallback lookup reaches it before any
+    /// monochrome symbol font.
+    pub fn set_emoji_font(&self, font_id: FontId) {
+        self.text_layout_system.set_emoji_font(font_id);
+    }
+
     pub fn new() -> Self {
         Self {
             text_layout_system: TextLayoutSystem::new(),
@@ -501,9 +513,15 @@ impl TextLayoutSystem {
             loaded_fonts: Default::default(),
             #[cfg(not(target_os = "windows"))]
             fallback_fonts: Default::default(),
+            emoji_font: RwLock::new(None),
             #[cfg(feature = "fontkit-rasterizer")]
             loaded_font_ids_since_last_raster: Default::default(),
         }
+    }
+
+    /// Registers the font that should be preferred for emoji code points.
+    fn set_emoji_font(&self, font_id: FontId) {
+        *self.emoji_font.write() = Some(font_id);
     }
 
     /// Helper function to read a Font Face ([`owned_ttf_parser::Face`]) identified by a [`FontId`].
@@ -1297,6 +1315,12 @@ impl platform::FontDB for FontDB {
         self.text_layout_system.glyph_for_char(font_id, char)
     }
 
+    fn set_emoji_font(&self, font_id: FontId) {
+        // Forward to the inherent method: a default trait method would otherwise
+        // silently do nothing when called through `dyn platform::FontDB`.
+        FontDB::set_emoji_font(self, font_id);
+    }
+
     fn text_layout_system(&self) -> &dyn platform::TextLayoutSystem {
         &self.text_layout_system
     }
@@ -1522,11 +1546,16 @@ impl TextLayoutSystem {
     }
 
     #[cfg(not(target_os = "windows"))]
-    fn fallback_fonts(&self, _ch: char, font_id: FontId) -> Vec<FontId> {
-        self.fallback_fonts
+    fn fallback_fonts(&self, ch: char, font_id: FontId) -> Vec<FontId> {
+        let fallbacks = self
+            .fallback_fonts
             .get(&font_id)
             .map(|fallbacks| fallbacks.clone())
-            .unwrap_or_default()
+            .unwrap_or_default();
+        // Font configuration does not reliably rank color emoji fonts above
+        // monochrome symbol fonts, so emoji code points get the configured
+        // emoji font first regardless of the fontconfig ordering.
+        crate::fonts::prioritize_emoji_fallback(ch, *self.emoji_font.read(), fallbacks)
     }
 
     #[cfg(target_os = "windows")]

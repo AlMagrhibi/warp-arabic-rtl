@@ -196,6 +196,15 @@ impl ansi::Handler for GridHandler {
             return;
         };
 
+        // Emoji modifiers and regional indicator pairs report a width of their
+        // own but belong to the previous cell's grapheme: treating them as new
+        // cells would split one emoji across two cells, which keeps it from ever
+        // being shaped into a single (color) glyph. Route them through the
+        // zero-width path instead.
+        let is_emoji_continuation =
+            width > 0 && self.incoming_char_continues_emoji_cluster(c);
+        let width = if is_emoji_continuation { 0 } else { width };
+
         let num_cols = self.columns();
 
         // Handle zero-width characters.
@@ -245,7 +254,8 @@ impl ansi::Handler for GridHandler {
             // which are commonly used in prompts e.g. GCloud prompt chip in Starship.
             if old_cell_content_width != cell_content_width
                 && cell_content_width == 2
-                && self.ansi_handler_state.supports_emoji_presentation_selector
+                && (self.ansi_handler_state.supports_emoji_presentation_selector
+                    || is_emoji_continuation)
             {
                 let mut wide_cell = mem::take(&mut self.grid[row][col]);
                 if col + 1 == num_cols
@@ -1571,6 +1581,27 @@ impl GridHandler {
 
     /// Resets a wide character pair when `col` is at the **end** of an
     /// operation's range (i.e., `col` is the first cell just past the range).
+    /// Whether `c` continues the emoji grapheme stored in the cell the cursor
+    /// would append a zero-width character to.
+    fn incoming_char_continues_emoji_cluster(&self, c: char) -> bool {
+        let mut col = self.grid.cursor().point.col;
+        if !self.grid.cursor().input_needs_wrap {
+            col = col.saturating_sub(1);
+        }
+        let row = self.grid.cursor_point().row;
+        if self.grid[row][col].flags.contains(Flags::WIDE_CHAR_SPACER) {
+            col = col.saturating_sub(1);
+        }
+
+        match self.grid[row][col].raw_content() {
+            CharOrStr::Str(content) => super::super::emoji::continues_emoji_cluster(content, c),
+            CharOrStr::Char(previous) => {
+                let mut buffer = [0; 4];
+                super::super::emoji::continues_emoji_cluster(previous.encode_utf8(&mut buffer), c)
+            }
+        }
+    }
+
     /// Only handles WIDE_CHAR_SPACER, because a WIDE_CHAR at `col` means the
     /// entire pair is outside the range and should be left intact.
     fn reset_wide_char_at_end_boundary(&mut self, row: usize, col: usize, bg: Color) {

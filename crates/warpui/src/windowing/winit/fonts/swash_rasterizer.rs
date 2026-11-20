@@ -20,17 +20,6 @@ impl FontDB {
         scale: Vector2F,
         _glyph_config: &GlyphConfig,
     ) -> Result<RectI> {
-        let Ok(_typographic_bounds) = self
-            .glyph_typographic_bounds(font_id, glyph_id)
-            .map(|bounds| bounds.to_f32())
-        else {
-            // We can't render this glyph using this font, return an empty rect to indicate we
-            // don't need to rasterize this glyph. This can happen if the font doesn't contain
-            // a glyph _or_ if the glyph isn't renderable (some fonts contain a glyph for the
-            // space character, but don't provide outlines for it).
-            return Ok(RectI::new(Vector2I::zero(), Vector2I::zero()));
-        };
-
         let id = *self
             .text_layout_system
             .font_id_map
@@ -54,6 +43,16 @@ impl FontDB {
             .clone()
             .ok_or_else(|| anyhow!("Failed to get raster image"))?;
 
+        if image.placement.width == 0 || image.placement.height == 0 {
+            // Nothing to rasterize. This happens for glyphs a font maps but does
+            // not draw (space, and color glyphs whose outlines are empty).
+            return Ok(RectI::new(Vector2I::zero(), Vector2I::zero()));
+        }
+
+        // Take the bounds from the rasterized image rather than from the
+        // typographic outline: color glyphs (COLR/CPAL layers, CBDT/CBLC
+        // bitmaps) typically have no outline of their own, so their typographic
+        // bounds are empty even though they draw perfectly well.
         let origin = vec2i(image.placement.left, -image.placement.top);
         let size = vec2i(image.placement.width as i32, image.placement.height as i32);
         Ok(RectI::new(origin, size))

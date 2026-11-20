@@ -1,4 +1,5 @@
 pub mod canvas;
+pub mod emoji;
 mod external_fallback;
 mod metrics;
 mod text_layout_system;
@@ -123,6 +124,7 @@ impl CustomWeightConversion for CustomWeight {
     }
 }
 
+pub use emoji::{is_emoji_char, prioritize_emoji_fallback};
 pub use external_fallback::{ExternalFontFamily, FallbackFontEvent, FallbackFontModel};
 pub(crate) use external_fallback::{FontBytes, RequestedFallbackFontSource};
 pub use metrics::Metrics;
@@ -434,6 +436,15 @@ impl Cache {
             glyph_config,
             format,
         )
+    }
+
+    /// Marks `font_id` as the font to prefer for emoji code points.
+    ///
+    /// Terminal glyph lookup asks for fallback fonts per character, so this is
+    /// what makes color emoji win over monochrome symbol fonts without changing
+    /// any other text rendering behaviour.
+    pub fn set_emoji_font(&self, font_id: FontId) {
+        self.platform.set_emoji_font(font_id);
     }
 
     /// Checks for a matching glyph in the system fallback fonts.

@@ -450,6 +450,12 @@ pub trait FontDB: 'static {
     /// given font.
     fn glyph_for_char(&self, font_id: FontId, char: char) -> Option<GlyphId>;
 
+    /// Registers the font that should be preferred for emoji code points.
+    ///
+    /// Backends whose font stacks already rank color emoji fonts correctly may
+    /// leave this as a no-op.
+    fn set_emoji_font(&self, _font_id: FontId) {}
+
     fn text_layout_system(&self) -> &dyn TextLayoutSystem;
 }
 

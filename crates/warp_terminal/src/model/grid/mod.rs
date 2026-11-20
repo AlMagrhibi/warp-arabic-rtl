@@ -1,4 +1,5 @@
 mod displayed_output;
+mod emoji;
 pub mod grid_handler;
 mod grid_storage;
 mod indexing;
