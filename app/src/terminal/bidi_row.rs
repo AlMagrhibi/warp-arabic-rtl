@@ -171,9 +171,10 @@ mod tests {
 
     #[test]
     fn mixed_row_keeps_latin_word_intact_and_last() {
-        // "abc مرح": "abc" is LTR and must stay left-to-right, Arabic is displayed to its right.
+        // "abc مرح": "abc" is LTR and must stay left-to-right, Arabic is displayed to its right
+        // and reversed, so the rightmost column holds the first Arabic letter.
         let layout = analyze_row(&cells("abc مرح")).expect("row needs bidi");
-        assert_eq!(layout.visual_order(), vec![0, 1, 2, 3, 7, 6, 5, 4]);
+        assert_eq!(layout.visual_order(), vec![0, 1, 2, 3, 6, 5, 4]);
     }
 
     #[test]
