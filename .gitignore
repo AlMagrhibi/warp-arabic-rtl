@@ -1,5 +1,13 @@
+# Cargo build products
 /target
 /app/target
+
+# Local generated workspace data (logs, dev screenshots, staging, sandbox HOMEs, manifests)
+/.work/
+# Release artifacts built locally (published through GitHub Releases, never committed)
+/dist/
+
+# Editor / OS noise
 /warp.xcworkspace
 .DS_Store
 *.rs.bk
